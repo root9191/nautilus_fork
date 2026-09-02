@@ -2469,7 +2469,7 @@ get_terminal_program (void)
 
     if (g_once_init_enter (&initialized))
     {
-        static const char *candidates[] = { "alacritty", "kitty" };
+        static const char *candidates[] = { "ptyxis", "alacritty", "kitty" };
 
         for (guint i = 0; i < G_N_ELEMENTS (candidates); i++)
         {
@@ -2525,11 +2525,24 @@ real_open_terminal (NautilusFile      *file,
         return;
     }
 
-    /* alacritty and kitty spell their working-directory flag differently */
-    g_autofree char *command = g_strconcat (terminal,
-                                            g_str_equal (terminal, "kitty") ?
-                                            " --directory" : " --working-directory",
-                                            NULL);
+    /* Per-terminal invocation. ptyxis is single-instance via D-Bus, so
+     * --working-directory alone gets ignored once an instance is running —
+     * needs an explicit --tab to actually open a new tab in that dir.
+     * kitty spells its working-directory flag --directory. */
+    const char *args;
+    if (g_str_equal (terminal, "ptyxis"))
+    {
+        args = " --tab --working-directory";
+    }
+    else if (g_str_equal (terminal, "kitty"))
+    {
+        args = " --directory";
+    }
+    else
+    {
+        args = " --working-directory";
+    }
+    g_autofree char *command = g_strconcat (terminal, args, NULL);
 
     nautilus_launch_application_from_command (gtk_widget_get_display (GTK_WIDGET (view)),
                                               command, FALSE, path, NULL);
